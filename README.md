@@ -193,7 +193,7 @@ story_telling/
 ### 1️⃣ Clone Repository
 
 ```
-git clone 
+git clone https://github.com/blankspace24/storytelling-bot.git
 cd story_telling
 ```
 
