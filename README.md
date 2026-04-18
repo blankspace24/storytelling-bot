@@ -179,6 +179,12 @@ story_telling/
 ├── streamlit/
 │   └── app.py
 │
+├── outputimage/
+│   ├── s1.png
+│   ├── s2.png
+│   ├── s3.png
+│   ├── s4.png
+│   └── s5.png
 ├── .env
 ├── requirements.txt
 ├── start.bat
