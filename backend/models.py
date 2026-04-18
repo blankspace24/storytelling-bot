@@ -1,68 +1,116 @@
-"""
-Pydantic models for structured script analysis output.
-
-These models define the exact JSON schema that the LLM must return,
-ensuring consistent, validated responses for every analysis.
-"""
-
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from typing import List, Optional
+from enum import Enum
 
 
+# ─────────────────────────────────────────────
+# Enums (STRICT CONTROL)
+# ─────────────────────────────────────────────
+class PriorityEnum(str, Enum):
+    high = "High"
+    medium = "Medium"
+    low = "Low"
+
+
+class CategoryEnum(str, Enum):
+    pacing = "Pacing"
+    conflict = "Conflict"
+    dialogue = "Dialogue"
+    emotional_impact = "Emotional Impact"
+    structure = "Structure"
+    character = "Character Development"
+
+
+# ─────────────────────────────────────────────
+# Input Model
+# ─────────────────────────────────────────────
 class ScriptInput(BaseModel):
-    """Input model for the /analyze endpoint."""
-    title: str = Field(default="Untitled", description="Title of the script")
-    script_text: str = Field(description="The full script text to analyze")
-    model: str = Field(default="mistral-large-latest", description="Mistral model to use")
+    title: str = Field(default="Untitled", min_length=1)
+    script_text: str = Field(min_length=10)
+    model: str = Field(default="mistral-large-latest")
+
+    model_config = {"extra": "forbid"}
 
 
+# ─────────────────────────────────────────────
+# Emotion Models
+# ─────────────────────────────────────────────
 class EmotionBeat(BaseModel):
-    """A single emotional beat in the story's arc."""
-    moment: str = Field(description="Brief description of the story moment")
-    emotion: str = Field(description="The dominant emotion at this moment")
-    intensity: float = Field(description="Emotional intensity from 0.0 to 1.0", ge=0.0, le=1.0)
+    moment: str = Field(min_length=5)
+    emotion: str = Field(min_length=2)
+    intensity: float = Field(ge=0.0, le=1.0)
+
+    model_config = {"extra": "forbid"}
 
 
 class EmotionAnalysis(BaseModel):
-    """Complete emotional analysis of the script."""
-    dominant_emotions: List[str] = Field(description="Top 3-5 dominant emotions across the script")
-    emotional_arc: List[EmotionBeat] = Field(description="Sequence of emotional beats")
-    arc_description: str = Field(description="One-line description of the overall emotional trajectory")
+    dominant_emotions: List[str] = Field(min_length=3, max_length=5)
+    emotional_arc: List[EmotionBeat] = Field(min_length=3)
+    arc_description: str = Field(min_length=10)
+
+    model_config = {"extra": "forbid"}
 
 
+# ─────────────────────────────────────────────
+# Engagement Models
+# ─────────────────────────────────────────────
 class EngagementFactor(BaseModel):
-    """A single factor contributing to the engagement score."""
-    name: str = Field(description="Factor name")
-    score: float = Field(description="Score from 0 to 100", ge=0, le=100)
-    explanation: str = Field(description="Brief explanation of the score")
+    name: str = Field(min_length=2)
+    score: float = Field(ge=0, le=100)
+    explanation: str = Field(min_length=5)
+
+    model_config = {"extra": "forbid"}
 
 
 class EngagementScore(BaseModel):
-    """Overall engagement potential assessment."""
-    overall_score: float = Field(description="Overall engagement score 0-100", ge=0, le=100)
-    factors: List[EngagementFactor] = Field(description="Breakdown of engagement factors")
-    verdict: str = Field(description="One-line verdict on engagement potential")
+    overall_score: float = Field(ge=0, le=100)
+    factors: List[EngagementFactor] = Field(min_length=2)
+    verdict: str = Field(min_length=5)
+
+    model_config = {"extra": "forbid"}
 
 
+# ─────────────────────────────────────────────
+# Suggestions
+# ─────────────────────────────────────────────
 class ImprovementSuggestion(BaseModel):
-    """A single improvement suggestion for the script."""
-    category: str = Field(description="Category: Pacing, Conflict, Dialogue, Emotional Impact, Structure, or Character Development")
-    suggestion: str = Field(description="The specific improvement suggestion")
-    priority: str = Field(description="Priority: High, Medium, or Low")
-    example: Optional[str] = Field(default=None, description="Optional implementation example")
+    category: CategoryEnum
+    suggestion: str = Field(min_length=10)
+    priority: PriorityEnum
+    example: Optional[str] = Field(default=None)
+
+    model_config = {"extra": "forbid"}
+
+    @field_validator("suggestion")
+    @classmethod
+    def clean_text(cls, v: str) -> str:
+        return v.strip()
 
 
+# ─────────────────────────────────────────────
+# Cliffhanger
+# ─────────────────────────────────────────────
 class CliffhangerMoment(BaseModel):
-    """The most suspenseful or cliffhanger moment in the script."""
-    moment_text: str = Field(description="The exact line or moment from the script")
-    explanation: str = Field(description="Why this moment works as a suspense point")
-    storytelling_technique: str = Field(description="The narrative technique used")
+    moment_text: str = Field(min_length=5)
+    explanation: str = Field(min_length=10)
+    storytelling_technique: str = Field(min_length=5)
+
+    model_config = {"extra": "forbid"}
 
 
+# ─────────────────────────────────────────────
+# Final Output Model
+# ─────────────────────────────────────────────
 class ScriptAnalysis(BaseModel):
-    """Complete structured analysis of a script."""
-    summary: str = Field(description="A concise 3-4 line summary of the story")
-    emotion_analysis: EmotionAnalysis = Field(description="Detailed emotional tone analysis")
-    engagement: EngagementScore = Field(description="Engagement potential assessment")
-    suggestions: List[ImprovementSuggestion] = Field(description="4-6 actionable improvement suggestions")
-    cliffhanger: CliffhangerMoment = Field(description="The most suspenseful moment in the script")
+    summary: str = Field(min_length=20)
+    emotion_analysis: EmotionAnalysis
+    engagement: EngagementScore
+    suggestions: List[ImprovementSuggestion] = Field(min_length=3, max_length=6)
+    cliffhanger: CliffhangerMoment
+
+    model_config = {"extra": "forbid"}
+
+    @field_validator("summary")
+    @classmethod
+    def clean_summary(cls, v: str) -> str:
+        return v.strip()
